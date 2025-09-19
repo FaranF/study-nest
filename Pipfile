@@ -1,0 +1,23 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "*"
+django-debug-toolbar = "*"
+djoser = "*"
+djangorestframework = "*"
+drf-nested-routers = "*"
+django-filter = "*"
+djangorestframework-simplejwt = "*"
+django-cors-headers = "*"
+psycopg = {extras = ["binary"], version = "*"}
+pillow = "*"
+
+[dev-packages]
+model-bakery = "*"
+
+[requires]
+python_version = "3.12"
+python_full_version = "3.12.10"

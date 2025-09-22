@@ -72,14 +72,14 @@ class DateFilter(admin.SimpleListFilter):
 
 @admin.register(models.Review)
 class ReviewAdmin(admin.ModelAdmin):
-    autocomplete_fields = ["author"]
+    autocomplete_fields = ["reviewer"]
     search_fields = [
-        "author__user__first_name",
-        "author__user__last_name",
+        "reviewer__user__first_name",
+        "reviewer__user__last_name",
         "comment",
     ]
     list_display = [
-        "author",
+        "reviewer",
         "content_type_id",
         "object_id",
         "rating",
@@ -95,5 +95,5 @@ class ReviewAdmin(admin.ModelAdmin):
         return (
             super()
             .get_queryset(request)
-            .select_related("author__user")
+            .select_related("reviewer__user")
         )

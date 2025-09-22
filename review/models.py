@@ -7,7 +7,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 
 # Create your models here.
 class Review(models.Model):
-    author = models.ForeignKey(
+    reviewer = models.ForeignKey(
         settings.USER_PROFILE, on_delete=models.CASCADE, related_name="reviews"
     )
     # course
@@ -25,7 +25,7 @@ class Review(models.Model):
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["author", "content_type", "object_id"], 
+                fields=["reviewer", "content_type", "object_id"], 
                 name="unique_review_per_object"
             )
         ]

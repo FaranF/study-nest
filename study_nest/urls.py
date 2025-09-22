@@ -23,7 +23,8 @@ from debug_toolbar.toolbar import debug_toolbar_urls
 urlpatterns = [
     path('admin/', admin.site.urls),
     # path('__debug__/', include(debug_toolbar.urls)),
-    # path('course/', include('course.urls')),
+    path('course/', include('course.urls')),
+    path('core/', include('core.urls')),
     # path('review/', include('review.urls')),
     # path('notification/', include('notification.urls')),
     path('auth/', include('djoser.urls')),

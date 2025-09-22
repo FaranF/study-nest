@@ -8,12 +8,12 @@ django = "*"
 django-debug-toolbar = "*"
 djoser = "*"
 djangorestframework = "*"
-drf-nested-routers = "*"
 django-filter = "*"
 djangorestframework-simplejwt = "*"
 django-cors-headers = "*"
 psycopg = {extras = ["binary"], version = "*"}
 pillow = "*"
+drf-nested-routers = "*"
 
 [dev-packages]
 model-bakery = "*"

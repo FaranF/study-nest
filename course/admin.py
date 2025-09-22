@@ -145,7 +145,7 @@ class LessonAdmin(admin.ModelAdmin):
 
 @admin.register(models.Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):
-    autocomplete_fields = ["course", "student"]
+    autocomplete_fields = ["student", "course"]
     search_fields = ["student", "course"]
     list_display = [
         "student",

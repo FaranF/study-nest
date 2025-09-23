@@ -40,7 +40,7 @@ class Course(models.Model):
 class Lesson(models.Model):
     title = models.CharField(max_length=255)
     order = models.PositiveIntegerField()
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="lessons")
     content = models.TextField()
     video_file = models.FileField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

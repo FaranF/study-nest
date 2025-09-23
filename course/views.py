@@ -1,11 +1,10 @@
-from django.shortcuts import render
-
-import course
-
-# from .permissions import FullDjangoModelPermissions, IsAdminOrReadOnly, ViewCustomerHistoryPermission
-from .pagination import DefaultPagination
 from django.db.models.aggregates import Count
+from django.db.models import Count, Q
+from django.forms import ValidationError
+from django.shortcuts import render
+from django.apps import apps
 from django_filters.rest_framework import DjangoFilterBackend
+
 from rest_framework.decorators import action, permission_classes
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.mixins import (
@@ -22,37 +21,76 @@ from rest_framework.permissions import (
     IsAuthenticated,
 )
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
 from rest_framework import status
-from .filters import CourseFilter, LessonFilter, EnrollmentFilter, ProgressFilter
+
 from .models import *
 from .serializers import *
+from .pagination import DefaultPagination
+from .filters import CourseFilter, LessonFilter, EnrollmentFilter, ProgressFilter
+from .permissions import IsAdminOrReadOnly, IsInstructorOrReadOnly, IsInstructor
 
 
-# Create your views here.
+# todo fix permissions
+# TODO fix queires on course
 class CategoryViewSet(ModelViewSet):
     queryset = Category.objects.annotate(courses_count=Count("courses")).all()
     serializer_class = CategorySerializer
     pagination_class = DefaultPagination
-    # permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAdminOrReadOnly]
     search_fields = ["title"]
     ordering_fields = ["title"]
 
 
 class CourseViewSet(ModelViewSet):
-    queryset = Course.objects.all()
+    queryset = (
+        Course.objects.select_related("instructor", "instructor__user", "category")
+        .annotate(lessons_count=Count("lessons"))
+        .all()
+    )
+
     pagination_class = DefaultPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = CourseFilter
-    # permission_classes = [IsAdminOrReadOnly]
     search_fields = ["title"]
     ordering_fields = ["title"]
+    permission_classes = [IsInstructorOrReadOnly]
 
     def get_serializer_class(self):
-        if self.request.method == "POST":
-            return CourseCreateSerializer
-        elif self.request.method in ["PUT", "PATCH"]:
-            return CourseUpdateSerializer
+        if self.request.method in ["PUT", "PATCH", "POST"]:
+            return CourseCreateUpdateSerializer
         return CourseSerializer
+
+    def perform_create(self, serializer):
+        Profile = apps.get_model(settings.USER_PROFILE)
+        try:
+            profile = Profile.objects.get(user=self.request.user)
+        except Profile.DoesNotExist:
+            raise PermissionDenied("You must have a profile to create/edit a course.")
+
+        if profile.role != "I":
+            raise PermissionDenied("Only instructors can create/edit courses.")
+
+        serializer.save(instructor=profile)
+
+    @action(detail=False, methods=["get"], permission_classes=[IsInstructor])
+    def my_courses(self, request):
+        profile = getattr(request, "profile", None)
+        if profile is None:
+            return Response(
+                ["You must have a profile to view your courses."],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        queryset = self.get_queryset().filter(instructor=profile)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class LessonViewSet(ModelViewSet):
@@ -60,14 +98,39 @@ class LessonViewSet(ModelViewSet):
     pagination_class = DefaultPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = LessonFilter
-    # permission_classes = [IsAdminOrReadOnly]
     search_fields = ["title"]
     ordering_fields = ["title"]
+    permission_classes = [IsInstructorOrReadOnly]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        course_id = self.kwargs.get("course_pk")
+        if course_id is not None:
+            queryset = queryset.filter(course_id=course_id)
+        return queryset
 
     def get_serializer_class(self):
-        if self.request.method in ["POST", "PATCH"]:
+        if self.request.method in ["PUT", "PATCH", "POST"]:
             return LessonCreateUpdateSerializer
         return LessonSerializer
+
+    def perform_create(self, serializer):
+        Profile = apps.get_model(settings.USER_PROFILE)
+        try:
+            profile = Profile.objects.get(user=self.request.user)
+        except Profile.DoesNotExist:
+            raise PermissionDenied("You must have a profile to create/edit a lesson.")
+
+        course_id = self.kwargs.get("course_pk")
+        try:
+            course = Course.objects.get(pk=course_id)
+        except Course.DoesNotExist:
+            raise ValidationError("Invalid course ID in URL.")
+
+        if course.instructor != profile:
+            raise PermissionDenied("You can only add/edit lessons to your own courses.")
+
+        serializer.save(course=course)
 
 
 class EnrollmentViewSet(

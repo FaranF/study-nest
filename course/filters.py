@@ -1,8 +1,11 @@
-from django_filters.rest_framework import FilterSet
+from django_filters.rest_framework import FilterSet, filters
+
 from . import models
 
 
 class CourseFilter(FilterSet):
+    lessons_count__gt = filters.NumberFilter(field_name="lessons_count", lookup_expr="gt", label="Lessons count greater than")
+    lessons_count__lt = filters.NumberFilter(field_name="lessons_count", lookup_expr="lt", label="Lessons count less than")
     class Meta:
         model = models.Course
         fields = {

@@ -1,3 +1,5 @@
+from ast import Is
+from operator import is_
 from django.db.models.aggregates import Count
 from django.db.models import Count, Q
 from django.forms import ValidationError
@@ -29,11 +31,13 @@ from .models import *
 from .serializers import *
 from .pagination import DefaultPagination
 from .filters import CourseFilter, LessonFilter, EnrollmentFilter, ProgressFilter
-from .permissions import IsAdminOrReadOnly, IsInstructorOrReadOnly, IsInstructor
+from .permissions import (
+    IsAdminOrReadOnly,
+    IsInstructor,
+    IsStudent,
+)
 
 
-# todo fix permissions
-# TODO fix queires on course
 class CategoryViewSet(ModelViewSet):
     queryset = Category.objects.annotate(courses_count=Count("courses")).all()
     serializer_class = CategorySerializer
@@ -55,7 +59,7 @@ class CourseViewSet(ModelViewSet):
     filterset_class = CourseFilter
     search_fields = ["title"]
     ordering_fields = ["title"]
-    permission_classes = [IsInstructorOrReadOnly]
+    permission_classes = [IsInstructor]
 
     def get_serializer_class(self):
         if self.request.method in ["PUT", "PATCH", "POST"]:
@@ -69,7 +73,7 @@ class CourseViewSet(ModelViewSet):
         except Profile.DoesNotExist:
             raise PermissionDenied("You must have a profile to create/edit a course.")
 
-        if profile.role != "I":
+        if profile.role != "I":  # type: ignore
             raise PermissionDenied("Only instructors can create/edit courses.")
 
         serializer.save(instructor=profile)
@@ -100,7 +104,7 @@ class LessonViewSet(ModelViewSet):
     filterset_class = LessonFilter
     search_fields = ["title"]
     ordering_fields = ["title"]
-    permission_classes = [IsInstructorOrReadOnly]
+    permission_classes = [IsInstructor]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -133,14 +137,12 @@ class LessonViewSet(ModelViewSet):
         serializer.save(course=course)
 
 
-class EnrollmentViewSet(
-    CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, GenericViewSet
-):
+class EnrollmentViewSet(ModelViewSet):
     queryset = Enrollment.objects.all()
     pagination_class = DefaultPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = EnrollmentFilter
-    # permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsStudent | IsAdminUser]
     search_fields = ["student", "course"]
     ordering_fields = ["student", "course"]
 
@@ -149,19 +151,113 @@ class EnrollmentViewSet(
             return EnrollmentCreateSerializer
         return EnrollmentSerializer
 
+    def get_profile(self):
+        if not hasattr(self, "_cached_profile"):
+            Profile = apps.get_model(settings.USER_PROFILE)
+            try:
+                self._cached_profile = Profile.objects.get(user=self.request.user)
+            except Profile.DoesNotExist:
+                self._cached_profile = None
+        return self._cached_profile
 
-class ProgressViewSet(
-    CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, GenericViewSet
-):
+    def perform_create(self, serializer):
+        profile = self.get_profile()
+        if not profile:
+            raise PermissionDenied("You must have a profile to create an enrollment.")
+        if profile.role != "S":
+            raise PermissionDenied("Only students can enroll in courses.")
+        serializer.save(student=profile)
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsStudent()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        profile = self.get_profile()
+        queryset = Enrollment.objects.select_related(
+            "student__user", "course__instructor__user", "course__category"
+        )
+
+        if self.request.user.is_staff:
+            return queryset.all()
+
+        if profile and profile.role == "S":
+            return queryset.filter(student=profile)
+
+        raise PermissionDenied("You don't have permission to access this progress.")
+
+
+class ProgressViewSet(ModelViewSet):
     queryset = Progress.objects.all()
     pagination_class = DefaultPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ProgressFilter
-    # permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsStudent | IsAdminUser]
     search_fields = ["enrollment", "lesson"]
     ordering_fields = ["enrollment", "lesson"]
 
     def get_serializer_class(self):
-        if self.request.method == "POST":
+        if self.request.method in ["POST"]:
             return ProgressCreateSerializer
         return ProgressSerializer
+
+    def get_profile(self):
+        if not hasattr(self, "_cached_profile"):
+            Profile = apps.get_model(settings.USER_PROFILE)
+            try:
+                self._cached_profile = Profile.objects.get(user=self.request.user)
+            except Profile.DoesNotExist:
+                self._cached_profile = None
+        return self._cached_profile
+
+    def perform_create(self, serializer):
+        enrollment_id = self.kwargs.get("enrollment_pk")
+        Enrollment = apps.get_model("course", "Enrollment")
+
+        try:
+            enrollment = Enrollment.objects.select_related("student__user").get(
+                id=enrollment_id
+            )
+        except Enrollment.DoesNotExist:
+            raise PermissionDenied("Enrollment does not exist.")
+
+        profile = self.get_profile()
+        if not profile:
+            raise PermissionDenied("You must have a profile to create progress.")
+
+        if not self.request.user.is_staff and enrollment.student != profile:
+            raise PermissionDenied("You can only add progress for your own enrollment.")
+
+        serializer.save(enrollment=enrollment)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["enrollment_id"] = self.kwargs.get("enrollment_pk")
+        return context
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsStudent()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        profile = self.get_profile()
+        enrollment_id = self.kwargs.get("enrollment_pk")
+
+        queryset = Progress.objects.select_related(
+            "enrollment__student__user", "lesson", "enrollment__course"
+        )
+
+        if self.request.user.is_staff:
+            return queryset.filter(enrollment_id=enrollment_id)
+
+        try:
+            enrollment = Enrollment.objects.get(id=enrollment_id)
+        except Enrollment.DoesNotExist:
+            raise PermissionDenied("Enrollment does not exist.")
+
+        if enrollment.student == profile:
+            return queryset.filter(enrollment_id=enrollment_id)
+
+        raise PermissionDenied("You don't have permission to access this progress.")

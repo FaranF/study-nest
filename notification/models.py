@@ -8,7 +8,7 @@ class Notification(models.Model):
     recipient = models.ForeignKey(
         settings.USER_PROFILE, on_delete=models.CASCADE, related_name="notifications"
     )
-    #profile
+    #progress
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey()

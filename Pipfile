@@ -14,9 +14,12 @@ django-cors-headers = "*"
 psycopg = {extras = ["binary"], version = "*"}
 pillow = "*"
 drf-nested-routers = "*"
+drf-yasg = "*"
 
 [dev-packages]
 model-bakery = "*"
+pytest = "*"
+pytest-django = "*"
 
 [requires]
 python_version = "3.12"

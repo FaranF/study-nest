@@ -9,11 +9,13 @@ from .models import Profile, User
 class UserCreateSerializer(BaseUserCreateSerializer):
     class Meta(BaseUserCreateSerializer.Meta):
         fields = ["username", "password", "email", "first_name", "last_name"]
+        ref_name = "CoreUserCreateSerializer"
 
 
 class UserSerializer(BaseUserSerializer):
     class Meta(BaseUserSerializer.Meta):
         fields = ["id", "username", "email", "first_name", "last_name"]
+        ref_name = "CoreUserSerializer"
 
 
 class ProfileSerializer(serializers.ModelSerializer):

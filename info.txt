@@ -1,0 +1,190 @@
+Perfect 😎 — let’s map this cleanly so you can start coding without second-guessing the schema. I’ll split it by your **3 apps** and show **models + relationships** clearly.
+
+---
+
+# 📂 1. `courses` app (core domain)
+
+Handles courses, lessons, enrollments, progress, and categories.
+
+### **Models**
+
+#### `Category`
+
+* `id` (PK)
+* `name` (CharField)
+* `slug` (SlugField, unique)
+
+#### `Course`
+
+* `id` (PK)
+* `title` (CharField)
+* `description` (TextField)
+* `instructor` (FK → `auth.User`, CASCADE)
+* `category` (FK → `Category`, SET\_NULL, nullable)
+* `thumbnail` (ImageField, optional)
+* `created_at` (DateTimeField, auto\_now\_add)
+* `updated_at` (DateTimeField, auto\_now)
+* `is_published` (BooleanField, default=False)
+
+#### `Lesson`
+
+* `id` (PK)
+* `course` (FK → `Course`, CASCADE)
+* `title` (CharField)
+* `content` (TextField)
+* `video_file` (FileField, optional)
+* `order` (PositiveIntegerField, for lesson ordering inside a course)
+* `created_at`
+
+#### `Resource` *(optional)*
+
+* `id` (PK)
+* `lesson` (FK → `Lesson`, CASCADE)
+* `title` (CharField)
+* `file` (FileField)
+
+#### `Enrollment`
+
+* `id` (PK)
+* `student` (FK → `auth.User`, CASCADE, related\_name="enrollments")
+* `course` (FK → `Course`, CASCADE, related\_name="enrollments")
+* `enrolled_at` (DateTimeField, auto\_now\_add)
+* `is_active` (BooleanField, default=True)
+
+🔹 Constraint: `UniqueConstraint(student, course)` → one enrollment per student per course.
+
+#### `Progress`
+
+* `id` (PK)
+* `enrollment` (FK → `Enrollment`, CASCADE, related\_name="progress")
+* `lesson` (FK → `Lesson`, CASCADE)
+* `is_completed` (BooleanField, default=False)
+* `completed_at` (nullable)
+
+🔹 Constraint: `UniqueConstraint(enrollment, lesson)` → track each lesson’s progress per enrollment.
+
+---
+
+# 📂 2. `reviews` app
+
+Handles reviews and ratings (decoupled from course logic).
+
+### **Models**
+
+#### `Review`
+
+* `id` (PK)
+* `course` (FK → `courses.Course`, CASCADE, related\_name="reviews")
+* `student` (FK → `auth.User`, CASCADE, related\_name="reviews")
+* `rating` (IntegerField, validators=\[MinValue(1), MaxValue(5)])
+* `comment` (TextField, blank=True)
+* `created_at` (DateTimeField, auto\_now\_add)
+
+🔹 Constraint: `UniqueConstraint(course, student)` → each student can only review a course once.
+
+---
+
+# 📂 3. `notifications` app
+
+Handles in-app + email notifications (with Celery/Redis).
+
+### **Models**
+
+#### `Notification`
+
+* `id` (PK)
+* `user` (FK → `auth.User`, CASCADE, related\_name="notifications")
+fk progress too
+* `message` (TextField)
+* `is_read` (BooleanField, default=False)
+* `created_at` (DateTimeField, auto\_now\_add)
+
+*(Optional)*: Add fields like `type` ("email", "system", "reminder") or `link` (URL to redirect user).
+
+---
+
+# 🔗 Relationships Recap
+
+* **User ↔ Course (1-to-many)** → instructor creates courses.
+* **User ↔ Course ↔ Enrollment (many-to-many)** → students enroll in courses.
+* **Enrollment ↔ Lesson (many-to-many via Progress)** → tracks completion.
+* **User ↔ Course ↔ Review (many-to-many with extra fields)** → students review courses.
+* **User ↔ Notification (1-to-many)** → messages for user activity.
+
+---
+
+👉 This gives you a **clean, normalized schema**:
+
+* `courses` = core logic
+* `reviews` = engagement, loosely coupled
+* `notifications` = async, reusable
+
+---
+
+Do you want me to **draw this as an ERD diagram** (visual entity-relationship graph) so you’ll have a clear “map” before you touch Django models?
+
+
+
+
+
+
+
+
+{
+    "id": 209,
+    "user": {
+        "id": 206,
+        "username": "ADMIN2",
+        "email": "Ad@a.com",
+        "first_name": "Admin",
+        "last_name": "22"
+    },
+    "role": "I",
+    "bio": "a",
+    "profile_image": null
+}
+a123a123
+
+{
+    "id": 210,
+    "user": {
+        "id": 207,
+        "username": "s",
+        "email": "s@s.com",
+        "first_name": "s",
+        "last_name": "1"
+    },
+    "role": "S",
+    "bio": "s",
+    "profile_image": null
+}
+s123s123
+
+
+
+
+1,admin,logentry
+2,auth,permission 
+3,auth,group 
+4,contenttypes,contenttype 
+5,sessions,session 
+6,debug_toolbar,historyentry 
+7,core,user 
+8,core,profile 
+9,course,category 
+10,course,course 
+11,course,enrollment 
+12,course,lesson 
+13,course,progress 
+14,review,review 
+15,notification,notification
+
+
+
+test behaviours not implementations
+
+
+
+im trying to write tests for my Django project with pytest. i give you a class view, serializer, model and then i ask you to write me a test class for it. remember this is really important. test behaviours not implementations! also write them in format of AAA (Arrange, Act, Assert). you can use rest framework packages to make them too like APIClient, status, decoration like @pytest.mark.django_db, removing duplicates with fixtures, model_bakery to create model instances etc. but use these based on your preference and if they are needed.
+
+

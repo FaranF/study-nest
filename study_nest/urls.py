@@ -18,7 +18,23 @@ from django.contrib import admin
 from django.urls import path, include
 import debug_toolbar
 from debug_toolbar.toolbar import debug_toolbar_urls
+from django.urls import re_path
+from rest_framework import permissions
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
 
+schema_view = get_schema_view(
+   openapi.Info(
+      title="Study Nest API",
+      default_version='v1',
+      description="api list",
+      terms_of_service="https://www.google.com/policies/terms/",
+      contact=openapi.Contact(email="contact@snippets.local"),
+      license=openapi.License(name="BSD License"),
+   ),
+   public=False,
+   permission_classes=(permissions.IsAuthenticated,),
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,5 +44,8 @@ urlpatterns = [
     path('review/', include('review.urls')),
     path('notification/', include('notification.urls')),
     path('auth/', include('djoser.urls')),
-    path('auth/', include('djoser.urls.jwt')),
+    path('auth/', include('djoser.urls.jwt')), 
+    path('swagger.<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ] + debug_toolbar_urls()

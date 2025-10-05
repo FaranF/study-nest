@@ -6,6 +6,8 @@ from django.forms import ValidationError
 from django.shortcuts import render
 from django.apps import apps
 from django_filters.rest_framework import DjangoFilterBackend
+from django.utils.decorators import method_decorator
+from django.core.cache import cache
 
 from rest_framework.decorators import action, permission_classes
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -26,6 +28,7 @@ from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework import status
+from django.views.decorators.cache import cache_page
 
 from .models import *
 from .serializers import *
@@ -34,6 +37,7 @@ from .filters import CourseFilter, LessonFilter, EnrollmentFilter, ProgressFilte
 from .permissions import (
     IsAdminOrReadOnly,
     IsInstructor,
+    IsInstructorOrReadOnly,
     IsStudent,
 )
 
@@ -59,7 +63,7 @@ class CourseViewSet(ModelViewSet):
     filterset_class = CourseFilter
     search_fields = ["title"]
     ordering_fields = ["title"]
-    permission_classes = [IsInstructor]
+    permission_classes = [IsInstructorOrReadOnly]
 
     def get_serializer_class(self):
         if self.request.method in ["PUT", "PATCH", "POST"]:
@@ -73,7 +77,7 @@ class CourseViewSet(ModelViewSet):
         except Profile.DoesNotExist:
             raise PermissionDenied("You must have a profile to create/edit a course.")
 
-        if profile.role != "I":  # type: ignore
+        if profile.role != "I":
             raise PermissionDenied("Only instructors can create/edit courses.")
 
         serializer.save(instructor=profile)
@@ -104,7 +108,7 @@ class LessonViewSet(ModelViewSet):
     filterset_class = LessonFilter
     search_fields = ["title"]
     ordering_fields = ["title"]
-    permission_classes = [IsInstructor]
+    permission_classes = [IsInstructorOrReadOnly]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -134,7 +138,15 @@ class LessonViewSet(ModelViewSet):
         if course.instructor != profile:
             raise PermissionDenied("You can only add/edit lessons to your own courses.")
 
-        serializer.save(course=course)
+        # serializer.save(course=course)
+        lesson = serializer.save(course=course)
+        cache.clear() 
+        return lesson
+    
+    @method_decorator(cache_page(60 * 10))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
 
 
 class EnrollmentViewSet(ModelViewSet):

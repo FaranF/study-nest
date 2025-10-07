@@ -1,3 +1,4 @@
+from queue import Empty
 from django.contrib import admin
 from django.db.models.query import QuerySet
 from datetime import date, timedelta
@@ -138,10 +139,27 @@ class LessonAdmin(admin.ModelAdmin):
         "order",
         DateFilter,
     ]
+    readonly_fields = ['video']
+    
+    def video(self, instance):
+        """Display the uploaded video file in admin as an HTML video player."""
+        if instance.video_file:
+            return format_html(
+                '<video controls>'
+                '<source src="{}" type="video/mp4">'
+                'Your browser does not support the video tag.'
+                '</video>',
+                instance.video_file.url
+            )
+        return "No video uploaded"
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("course")
 
+    class Media:
+        css = {
+            "all": ("course/styles.css")
+        }
 
 @admin.register(models.Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):

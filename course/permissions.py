@@ -34,25 +34,6 @@ class IsInstructorOrReadOnly(BasePermission):
             return obj.course.instructor == profile
         return False
 
-# class IsInstructorOrReadOnly(BasePermission):
-#     def has_permission(self, request, view):
-#         if request.method in SAFE_METHODS:
-#             return True
-#         return request.user and request.user.is_authenticated
-
-#     def has_object_permission(self, request, view, obj):
-#         if request.method in SAFE_METHODS:
-#             return True
-
-#         Profile = apps.get_model(settings.USER_PROFILE)
-#         try:
-#             profile = Profile.objects.get(user=request.user)
-#         except Profile.DoesNotExist:
-#             return False
-
-#         instructor = getattr(obj, "instructor", None) or getattr(getattr(obj, "course", None), "instructor", None)
-#         return instructor == profile
-
 
 class IsInstructor(BasePermission):
     def has_permission(self, request, view):

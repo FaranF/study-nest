@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from datetime import timedelta
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -144,6 +145,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -195,4 +199,26 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     }
+}
+
+
+"""
+TODO:
+add celery brookers for uploads
+seperate setting files for production and development
+documentations
+docker
+test cases for one class
+"""
+
+from celere.schedules import crontab
+CELERY_BROKER_URL = 'redis://localhost:6379/1' #TODO: check 1 or 0 for database
+CELERY_BEAT_SCHEDULE = {
+    'notify_users': {
+        'task': 'notification.tasks.notify_users',
+        # 'schedule': timedelta(minutes=5),
+        'schedule': crontab(minute='*/5'),
+        # 'schedule': crontab(day_of_week='mon-fri', hour='10', minute='30'),
+        'args': ('This is a test notification.',),
+    },
 }

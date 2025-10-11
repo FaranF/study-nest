@@ -24,7 +24,7 @@ class NotificationViewSet(ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = NotificationFilter
     search_fields = ["message"]
-    ordering_fields = ["is_read"]
+    ordering_fields = ["is_read","created_at"]
 
     def get_serializer_class(self):
         if self.action == "create":

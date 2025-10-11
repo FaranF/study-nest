@@ -17,6 +17,8 @@ drf-nested-routers = "*"
 drf-yasg = "*"
 redis = "*"
 django-redis = "*"
+celery = "*"
+flower = "*"
 
 [dev-packages]
 model-bakery = "*"
@@ -25,4 +27,4 @@ pytest-django = "*"
 
 [requires]
 python_version = "3.12"
-python_full_version = "3.12.10"
+python_full_version = "3.12.3"

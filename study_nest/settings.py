@@ -99,7 +99,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'study_nest',
         'USER': 'faran',
-        'PASSWORD': 'faranf22',
+        # 'PASSWORD': 'faranf22',#windows
+        'PASSWORD': 'f',#wsl
         'HOST': 'localhost',
         'PORT': '5432',
         'OPTIONS': {
@@ -204,18 +205,17 @@ CACHES = {
 
 """
 TODO:
-add celery brookers for uploads
 seperate setting files for production and development
 documentations
 docker
 test cases for one class
 """
 
-from celere.schedules import crontab
+from celery.schedules import crontab
 CELERY_BROKER_URL = 'redis://localhost:6379/1' #TODO: check 1 or 0 for database
 CELERY_BEAT_SCHEDULE = {
     'notify_users': {
-        'task': 'notification.tasks.notify_users',
+        'task': 'core.tasks.notify_users',
         # 'schedule': timedelta(minutes=5),
         'schedule': crontab(minute='*/5'),
         # 'schedule': crontab(day_of_week='mon-fri', hour='10', minute='30'),

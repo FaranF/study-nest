@@ -1,3 +1,5 @@
 mock_img*.jpeg
 *.jpg
 course/tests/*
+/media/
+/static/

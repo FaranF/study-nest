@@ -20,6 +20,7 @@ django-redis = "*"
 celery = "*"
 flower = "*"
 whitenoise = "*"
+gunicorn = "*"
 
 [dev-packages]
 model-bakery = "*"

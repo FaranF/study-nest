@@ -3,3 +3,5 @@ mock_img*.jpeg
 course/tests/*
 /media/
 /static/
+general.log
+/profiles/

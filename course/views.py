@@ -41,6 +41,8 @@ from .permissions import (
     IsStudent,
 )
 
+import logging
+logger = logging.getLogger(__name__)
 
 class CategoryViewSet(ModelViewSet):
     queryset = Category.objects.annotate(courses_count=Count("courses")).all()
@@ -80,7 +82,9 @@ class CourseViewSet(ModelViewSet):
         if profile.role != "I":
             raise PermissionDenied("Only instructors can create/edit courses.")
 
-        serializer.save(instructor=profile)
+        course = serializer.save(instructor=profile)
+        logger.info(f"Course '{course.title}' created by instructor {profile.id}")
+
 
     @action(detail=False, methods=["get"], permission_classes=[IsInstructor])
     def my_courses(self, request):

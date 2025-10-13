@@ -1,6 +1,7 @@
 mock_img*.jpeg
 *.jpg
 /media/
+media/
 /static/
 general.log
 /profiles/

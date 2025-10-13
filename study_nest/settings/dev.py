@@ -21,7 +21,6 @@ DATABASES = {
 
 """
 TODO:
-posibility of finding free production server
-documentations and test cases for course only
+deploy on render.com
 docker
 """

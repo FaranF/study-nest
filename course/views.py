@@ -45,6 +45,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 class CategoryViewSet(ModelViewSet):
+    """
+    ViewSet for managing course categories.
+    - Allows read-only access for all users.
+    - Admins can create, update, or delete categories.
+    """
     queryset = Category.objects.annotate(courses_count=Count("courses")).all()
     serializer_class = CategorySerializer
     pagination_class = DefaultPagination
@@ -54,6 +59,11 @@ class CategoryViewSet(ModelViewSet):
 
 
 class CourseViewSet(ModelViewSet):
+    """
+    ViewSet for managing courses.
+    - Public users can view courses.
+    - Instructors can create and manage their own courses.
+    """
     queryset = (
         Course.objects.select_related("instructor", "instructor__user", "category")
         .annotate(lessons_count=Count("lessons"))
@@ -73,6 +83,7 @@ class CourseViewSet(ModelViewSet):
         return CourseSerializer
 
     def perform_create(self, serializer):
+        # only instructors with valid profiles can create courses with Loggers
         Profile = apps.get_model(settings.USER_PROFILE)
         try:
             profile = Profile.objects.get(user=self.request.user)
@@ -88,6 +99,7 @@ class CourseViewSet(ModelViewSet):
 
     @action(detail=False, methods=["get"], permission_classes=[IsInstructor])
     def my_courses(self, request):
+        # return a list of courses owned by the authenticated instructor.
         profile = getattr(request, "profile", None)
         if profile is None:
             return Response(
@@ -106,6 +118,11 @@ class CourseViewSet(ModelViewSet):
 
 
 class LessonViewSet(ModelViewSet):
+    """
+    ViewSet for managing course lessons.
+    - Public users can view lessons.
+    - Instructors can create, update, or delete their own lessons
+    """
     queryset = Lesson.objects.all()
     pagination_class = DefaultPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -127,6 +144,7 @@ class LessonViewSet(ModelViewSet):
         return LessonSerializer
 
     def perform_create(self, serializer):
+        # only instructors can create lessons and only within their own courses.
         Profile = apps.get_model(settings.USER_PROFILE)
         try:
             profile = Profile.objects.get(user=self.request.user)
@@ -142,18 +160,23 @@ class LessonViewSet(ModelViewSet):
         if course.instructor != profile:
             raise PermissionDenied("You can only add/edit lessons to your own courses.")
 
-        # serializer.save(course=course)
         lesson = serializer.save(course=course)
         cache.clear() 
         return lesson
     
     @method_decorator(cache_page(60 * 10))
     def list(self, request, *args, **kwargs):
+        # use of caching. returns a cached list of lessons for 10 minutes.
         return super().list(request, *args, **kwargs)
 
 
 
 class EnrollmentViewSet(ModelViewSet):
+    """
+    ViewSet for managing course enrollments.
+    - Students can create and view their own enrollments.
+    - Admin users have full access to all enrollments.
+    """
     queryset = Enrollment.objects.all()
     pagination_class = DefaultPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -168,6 +191,7 @@ class EnrollmentViewSet(ModelViewSet):
         return EnrollmentSerializer
 
     def get_profile(self):
+        # Retrieve and cache the user's profile to avoid repeated database queries.
         if not hasattr(self, "_cached_profile"):
             Profile = apps.get_model(settings.USER_PROFILE)
             try:
@@ -177,6 +201,10 @@ class EnrollmentViewSet(ModelViewSet):
         return self._cached_profile
 
     def perform_create(self, serializer):
+        """
+        Allow only students to enroll in courses.
+        Automatically associates the enrollment with the student's profile.
+        """
         profile = self.get_profile()
         if not profile:
             raise PermissionDenied("You must have a profile to create an enrollment.")
@@ -205,6 +233,11 @@ class EnrollmentViewSet(ModelViewSet):
 
 
 class ProgressViewSet(ModelViewSet):
+    """
+    ViewSet for managing lesson progress within a course enrollment.
+    - Students can create and view progress records for their own enrollments
+    - Admins have full access to all progress data.
+    """
     queryset = Progress.objects.all()
     pagination_class = DefaultPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -228,6 +261,10 @@ class ProgressViewSet(ModelViewSet):
         return self._cached_profile
 
     def perform_create(self, serializer):
+        """
+        Validate and create a progress record tied to a specific enrollment.
+        - Ensures the enrollment exists and verifies that the student owns the enrollment
+        """
         enrollment_id = self.kwargs.get("enrollment_pk")
         Enrollment = apps.get_model("course", "Enrollment")
 
@@ -248,6 +285,7 @@ class ProgressViewSet(ModelViewSet):
         serializer.save(enrollment=enrollment)
 
     def get_serializer_context(self):
+        # Add `enrollment_id` to the serializer context for nested routes.
         context = super().get_serializer_context()
         context["enrollment_id"] = self.kwargs.get("enrollment_pk")
         return context
